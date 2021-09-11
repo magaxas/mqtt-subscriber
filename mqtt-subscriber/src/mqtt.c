@@ -51,10 +51,13 @@ void on_message(
 
 int init_mqtt(struct mosquitto **mosq, config *conf)
 {
+    //Quit if most basic configuration is not valid
+    if (!conf->host || !conf->port) return 1;
+
     int rc = mosquitto_lib_init();
     if (rc) syslog(LOG_ERR, "Could not init mosquito lib with rc=%d\n", rc);
 
-    *mosq = mosquitto_new(NULL, true, conf);
+    *mosq = mosquitto_new("mqttsub", false, conf);
     mosquitto_connect_callback_set(*mosq, on_connect);
     mosquitto_message_callback_set(*mosq, on_message);
 
@@ -87,10 +90,10 @@ int init_mqtt(struct mosquitto **mosq, config *conf)
         }
     }
 
-    rc = mosquitto_connect(*mosq, conf->host, conf->port, 10);
-    if (rc) syslog(LOG_ERR, "Could not conect to broker with rc=%d\n", rc);
+    if (mosquitto_connect(*mosq, conf->host, conf->port, 10) != MOSQ_ERR_SUCCESS) {
+        syslog(LOG_ERR, "Could not conect to broker with rc=%d\n", rc);
+    }
 
-    mosquitto_loop_start(*mosq);
     return rc;
 }
 

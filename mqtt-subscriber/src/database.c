@@ -15,7 +15,7 @@ int db_connect()
             id INTEGER PRIMARY KEY, \
             date DATETIME DEFAULT current_timestamp, \
             topic TEXT NOT NULL, \
-            message TEXT NOT NULL, \
+            message TEXT NOT NULL \
         ); \
     ";
 
@@ -35,7 +35,7 @@ int db_insert_msg(char *topic, char *msg)
     char *query = sqlite3_mprintf("\
         INSERT INTO messages (topic, message) \
         VALUES ('%q', '%q'); \
-    ");
+    ", topic, msg);
 
     char *err = NULL;
     int rc = sqlite3_exec(db, query, 0, NULL, err);

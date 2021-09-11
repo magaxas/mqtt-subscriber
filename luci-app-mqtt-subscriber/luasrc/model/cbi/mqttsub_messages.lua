@@ -4,10 +4,10 @@ m = SimpleForm("system")
 m.submit = false
 m.reset = false
 
-local s = m:section(Table, messages, translate("Received MQTT Messages"), translate("Messages received from MQTT publisher(s)"))
+local s = m:section(Table, nil, translate("Received MQTT Messages"), translate("Messages received from MQTT publisher(s)"))
 s.anonymous = true
 s.template = "mqtt-subscriber/messages"
-s.addremove = false
+s.addremove = true
 s.refresh = true
 s.table_config = {
     truncatePager = true,
@@ -23,12 +23,27 @@ s.table_config = {
     }
 }
 
-o = s:option(DummyValue, "date", translate("Date"), translate("Received message creation date"))
-o = s:option(DummyValue, "topic", translate("Topic"), translate("Message topic"))
-o = s:option(DummyValue, "message", translate("Message Body"), translate("Content of the message"))
+o = s:option(DummyValue, "id", translate("ID"), translate("Message ID from database"))
+o.optional = true
+o.id = true
 
-if s.addremove then
-    s:option(DummyValue, "", translate(""))
+s:option(DummyValue, "date", translate("Date"), translate("Received message creation date"))
+s:option(DummyValue, "topic", translate("Topic"), translate("Message topic"))
+
+o = s:option(DummyValue, "message", translate("Message Body"), translate("Content of the message"))
+o.message = true
+
+function s.remove(self, id)
+    if id then
+        local sql = require "lsqlite3"
+        local db = sql.open("/var/lib/mqttsub.db")
+
+        if db then
+            db:exec("DELETE FROM messages WHERE id = " .. id .. ";")
+            db:close()
+            luci.util.perror("DEBUG: Removed message with id = " .. id)
+        end
+    end
 end
 
 return m

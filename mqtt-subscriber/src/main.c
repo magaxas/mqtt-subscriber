@@ -1,9 +1,11 @@
 #include "main.h"
 
+static int running = 1;
+
 void handle_signal(int sig, siginfo_t *siginfo, void *context)
 {
     syslog(LOG_INFO, "Stopping daemon...");
-    putchar('q');
+    running = 0;
 }
 
 int main(void)
@@ -26,8 +28,22 @@ int main(void)
     }
     else if (conf == NULL) goto end;
     else if (db_connect() != SQLITE_OK) goto end;
-    else if (init_mqtt(&mosq, conf) != MOSQ_ERR_SUCCESS) goto end; 
-    getchar();
+    else if (init_mqtt(&mosq, conf) != MOSQ_ERR_SUCCESS) goto end;
+
+    int rc = MOSQ_ERR_SUCCESS;
+    while (running) {
+        rc = mosquitto_loop(mosq, -1, 1);
+
+        if(running && rc != MOSQ_ERR_SUCCESS) {
+            syslog(LOG_INFO, "Lost connection! Trying to reconnect in 5s...");
+            sleep(5);
+
+            rc = mosquitto_reconnect(mosq);
+            if (rc != MOSQ_ERR_SUCCESS) {
+                syslog(LOG_INFO, "Failed to reconnect!");
+            }
+        }
+    }
 
 end:
     cleanup_mqtt(&mosq);

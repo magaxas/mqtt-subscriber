@@ -1,4 +1,14 @@
 <%-
+local has_titles = false
+local i, k
+local colspan = 1
+
+for i, k in pairs(self.children) do
+	if not has_titles and k.title and #k.title > 0 then
+		has_titles = true
+	end
+end
+
 local function generate_config(config, delimiter)
 	write("{")
 	for name, val in pairs(config) do
@@ -16,6 +26,43 @@ local function generate_config(config, delimiter)
 end
 -%>
 
+<script type="text/javascript">
+	function updateTable() {
+		if (table) {
+			var data = {};
+			var xhr = new XHR();
+			xhr.post(
+				'<%=luci.dispatcher.build_url("admin", "services", "mqttsub", "get_messages")%>',
+				data,
+				function(x, data)
+				{
+					var rows = table.rows();
+					rows.remove([...Array(table.activeRows.length).keys()]);
+					console.log("Fetched messages: ", data);
+
+					if (data && data.length > 0) {
+						for (var i = 0; i < data.length; i++) {
+							rows.add([
+								data[i].date,
+								data[i].topic,
+								data[i].message,
+								'<input name="cbid.<%=self.config%>.__selected__" type="checkbox" value="'+ data[i].id + '">'
+							]);
+						}
+					}
+					else {
+						rows.add(['<em><%:There are no messages%></em>', '', '', '']);
+					}
+				}
+        	);
+		}
+	}
+
+	document.addEventListener('luci-loaded', () => {
+		updateTable()
+	})
+</script>
+
 <!-- tblsection -->
 <script src="<%=resource%>/vanilla-dataTables.js"></script>
 <% if self.title and #self.title > 0 then -%>
@@ -31,56 +78,63 @@ end
 <%- end %>
 <div id="<%=self.config%>.<%=self.sectiontype%>.<%=self.title%>.toggle" class="toggle-content">
 	<div class="table-wrapper">
-		<table id="messages-table" style="word-wrap: anywhere;">
-			<thead>
-				<tr>
-					<% local i, k
-					for i, k in ipairs(self.children) do
-						if not k.optional then%>
-							<th><%=k.title%></th>
-						<%end
-					end %>
-					<% if self.addremove then -%>
-						<th><input type="checkbox" id="select-all"></th>
-					<%-end-%>
-				</tr>
-			</thead>
+		<table id="table" style="word-wrap: anywhere;">
+			<% if has_titles then %>
+				<thead>
+					<tr>
+						<% local i, k
+
+						for i, k in ipairs(self.children) do colspan = colspan + 1
+							if not k.optional then%>
+								<th><%=k.title%></th>
+							<%end
+						end %>
+						<% if self.addremove then -%>
+							<th><input type="checkbox" id="select-all"></th>
+						<%-end-%>
+					</tr>
+				</thead>
+			<% end %>
 			<tbody>
 				<%-
-				local isempty, i, k
-				local ctrl = require "luci.controller.mqttsub"
-				local messages = ctrl.get_messages()
+				local isempty, section, i, k = true, nil, nil
 
-				for i, k in ipairs(messages) do
+				for i, k in ipairs(self:cfgsections()) do
 					isempty = false
+					section = k
+
+					local scope = {
+						valueheader = "cbi/cell_valueheader",
+						valuefooter = "cbi/cell_valuefooter"
+					}
 				-%>
 					<tr class="cbi-section-table-row">
-						<%-
-							local index, node
-							for index, node in ipairs(self.children) do
-								if not node.optional then -%>
-									<td class="input-cell word-break">
-										<div class="div-heading">
-											<%=node.title%>
-										</div>
-										<%=messages[node.title]%>
-									</td><%-
-								end
+					<%-
+						local node, id
+
+						for k, node in ipairs(self.children) do
+							if not node.optional and not node.message then
+								node:render(section, scope or {})
+							elseif node.message then -%>
+								<td class="input-cell word-break" id="cbi-table-<%=i%>-message">
+									<div class="div-heading"><%=node.title%></div><%=node:cfgvalue(section) or node.default or ""%>
+								</td>
+							<%- elseif node.id then
+								id = node:cfgvalue(section)
 							end
-						-%>
-						<% if self.addremove then -%>
-							<td>
-								<div class="div-heading">Select</div>
-								<input name="cbid.<%=self.config%>.__selected__" type="checkbox" value="<%=id%>">
-							</td>
-						<% end -%>
+						end
+					-%>
+					<% if self.addremove then -%>
+						<td>
+							<div class="div-heading">Select</div>
+							<input name="cbid.<%=self.config%>.__selected__" type="checkbox" value="<%=id%>">
+						</td>
+					<% end -%>
 					</tr>
 				<%- end -%>
 				<%- if isempty then -%>
 					<tr>
-						<td class="left-aligned" colspan="3">
-							<em><%:There are no messages%></em>
-						</td>
+						<td class="left-aligned" <%=ifattr(colspan > 1, "colspan", colspan)%>><em>Loading...</em></td>
 					</tr>
 				<%- end -%>
 			</tbody>
@@ -96,7 +150,7 @@ end
 </div>
 <script>
 	var config = <%generate_config(self.table_config)%>;
-	var table = new DataTable("#messages-table", config);
+	var table = new DataTable("#table", config);
 
     <%- if self.addremove then -%>
 		document.querySelector("#select-all").addEventListener("click", function(ev) {
@@ -106,5 +160,11 @@ end
 			});
 		});
 	<%- end -%>
+	checkToggled(
+		document.getElementById(
+			"<%=self.config%>.<%=self.sectiontype%>.<%=self.title%>.toggle"
+		),
+		"<%=self.config%>.<%=self.sectiontype%>.<%=self.title%>.toggle"
+	);
 </script>
 <!-- /tblsection -->

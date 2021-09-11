@@ -11,14 +11,19 @@ function index()
     )
     entry(
         {"admin", "services", "mqttsub", "messages"},
-        cbi("mqttsub_messages"), "Messages", 2
+        form("mqttsub_messages"), "Messages", 2
     )
+
+    entry(
+        {"admin", "services", "mqttsub", "get_messages"},
+        post("get_messages"), nil
+    ).leaf = true
 end
 
 function get_messages()
     local msgs = {}
     local sql = require "lsqlite3"
-    local db = sql.open("/var/lib/mqttsub.sql")
+    local db = sql.open("/var/lib/mqttsub.db")
     
     db:exec([[
         CREATE TABLE IF NOT EXISTS messages (
@@ -30,12 +35,13 @@ function get_messages()
     ]])
 
     if db then
-        for r in db:rows("SELECT * FROM messages ORDER BY date DESC") do
+        for r in db:rows("SELECT id, date, topic, message FROM messages ORDER BY date DESC") do
             -- Keys to be inserted must match names from model!
-            table.insert(msgs, {date = r[1], topic = r[2], message = r[3]})
+            table.insert(msgs, {id = r[1], date = r[2], topic = r[3], message = r[4]})
         end
         db:close()
     end
 
-    return msgs
+    luci.http.prepare_content("application/json")
+    luci.http.write_json(msgs)
 end
