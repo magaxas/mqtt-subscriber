@@ -14,9 +14,13 @@
 #include <sqlite3.h>
 #include <mosquitto.h>
 #include <uci.h>
+#include <curl.h>
+#include <json-c/json.h>
 
 //Source includes
 #include "utils.h"
 #include "config.h"
 #include "database.h"
 #include "mqtt.h"
+#include "mail.h"
+#include "events.h"

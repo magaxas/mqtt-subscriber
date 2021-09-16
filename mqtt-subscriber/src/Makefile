@@ -1,4 +1,4 @@
-LDFLAGS:=-lsqlite3 -lmosquitto -luci
+LDFLAGS:=-lsqlite3 -lmosquitto -luci -lcurl -ljson-c
 CFLAGS:=-Wall
 BIN:=mqttsub
 

@@ -8,6 +8,11 @@ void on_connect(struct mosquitto *mosq, void *obj, int rc)
     }
 
     config *conf = (config*) obj;
+    if (conf == NULL) {
+        syslog(LOG_ERR, "Empty config from on_connect callback!");
+        return;
+    }
+
     for (int i = 0; i < conf->topics_amount; i++) {
         if (mosquitto_subscribe(
                 mosq,
@@ -20,7 +25,8 @@ void on_connect(struct mosquitto *mosq, void *obj, int rc)
                 "Successfully subscribed to the \"%s\"",
                 conf->topics[i].topic
             );
-        } else {
+        }
+        else {
             syslog(
                 LOG_INFO,
                 "Failed to subscribe to the \"%s\"",
@@ -43,6 +49,14 @@ void on_message(
         );
 
         db_insert_msg(msg->topic, (char*) msg->payload);
+
+        config *conf = (config*) obj;
+        if (conf == NULL) {
+            syslog(LOG_ERR, "Empty config from on_message callback!");
+            return;
+        }
+
+        handle_events(conf, msg->topic, msg->payload);
     }
     else {
         syslog(LOG_WARNING, "Received empty message!");

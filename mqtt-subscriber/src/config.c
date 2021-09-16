@@ -18,13 +18,13 @@ static int init_uci(
     return UCI_OK;
 }
 
-static int get_topics_amount(struct uci_package *pkg)
+static int get_amount(struct uci_package *pkg, char *sct)
 {
     int count = 0;
     struct uci_element *it = NULL;
     uci_foreach_element(&pkg->sections, it) {
         struct uci_section *s = uci_to_section(it);
-        if (strcmp(s->type, "topic") == 0) ++count;
+        if (strcmp(s->type, sct) == 0) ++count;
     }
 
     return count;
@@ -66,14 +66,21 @@ config *init_config()
         goto end;
     }
 
-    conf->topics_amount = get_topics_amount(pkg);
+    conf->topics_amount = get_amount(pkg, "topic");
     conf->topics = (topic*) malloc(sizeof(topic) * conf->topics_amount);
     if (!conf->topics) {
         syslog(LOG_ERR, "Failed to allocate topics!");
         goto end;
     }
 
-    int i = 0;
+    conf->events_amount = get_amount(pkg, "event");
+    conf->events = (event*) malloc(sizeof(event) * conf->events_amount);
+    if (!conf->events) {
+        syslog(LOG_ERR, "Failed to allocate events!");
+        goto end;
+    }
+
+    int i = 0, j = 0;
     struct uci_element *tmp = NULL;
     uci_foreach_element(&pkg->sections, tmp) {
         struct uci_section *sct = uci_to_section(tmp);
@@ -97,6 +104,26 @@ config *init_config()
             conf->topics[i].qos = get_integer_option(ctx, sct, "qos");
             ++i;
         }
+        else if (
+            strcmp(sct->type, "event") == 0 && 
+            get_integer_option(ctx, sct, "enabled") == 1
+        ) {
+            conf->events[j].topic = get_string_option(ctx, sct, "value");
+            conf->events[j].key = get_string_option(ctx, sct, "key");
+            conf->events[j].type = get_integer_option(ctx, sct, "type");
+            conf->events[j].ct = get_integer_option(ctx, sct, "ct");
+            conf->events[j].value = get_string_option(ctx, sct, "value");
+
+            //Email settings
+            conf->events[j].smtp_host = get_string_option(ctx, sct, "smtp_host");
+            conf->events[j].smtp_port = get_integer_option(ctx, sct, "smtp_port");
+            conf->events[j].smtp_username = get_string_option(ctx, sct, "smtp_username");
+            conf->events[j].smtp_password = get_integer_option(ctx, sct, "smtp_password");
+            conf->events[j].smtp_use_ssl = get_string_option(ctx, sct, "smtp_use_ssl");
+            conf->events[j].from_email = get_integer_option(ctx, sct, "from_email");
+            conf->events[j].to_email = get_string_option(ctx, sct, "to_email");
+            ++j;
+        }
     }
 
 end:
@@ -106,12 +133,31 @@ end:
 
 void cleanup_config(config *conf)
 {
-    for (int i = 0; i < conf->topics_amount; i++) {
+    int i;
+    for (i = 0; i < conf->topics_amount; i++) {
         FREE(conf->topics[i].topic, conf->topics[i]);
+    }
+
+    for (i = 0; i < conf->events; i++) {
+        FREE(
+            conf->events[i].topic,
+            conf->events[i].key,
+            conf->events[i].type,
+            conf->events[i].ct,
+            conf->events[i].value,
+            conf->events[i].smtp_host,
+            conf->events[i].smtp_port,
+            conf->events[i].smtp_username,
+            conf->events[i].smtp_password,
+            conf->events[i].smtp_use_ssl,
+            conf->events[i].from_email,
+            conf->events[i].to_email
+        );
     }
 
     FREE(
         conf->topics,
+        conf->events,
         conf->host,
         conf->username,
         conf->password,
