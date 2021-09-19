@@ -60,6 +60,7 @@ int send_email(
 
     struct curl_slist *recipients = NULL;
     struct upload_status upload = {0};
+
     int url_length = strlen(server) + get_int_length(port) + 10;
     char *url = (char*) calloc(
         strlen(server) + get_int_length(port) + 10,
@@ -118,15 +119,13 @@ int send_email(
             syslog(
                 LOG_ERR, "curl_easy_perform() failed: %d", (int) res
             );
-            return (int) res;
         }
 
         curl_slist_free_all(recipients);
         curl_easy_cleanup(curl);
-
-        FREE(url);
-        FREE(data);
     }
+    FREE(url);
+    FREE(data);
 
     return (int) res;
 }

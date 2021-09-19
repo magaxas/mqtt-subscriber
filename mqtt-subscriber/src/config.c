@@ -104,10 +104,12 @@ config *init_config()
             conf->topics[i].qos = get_integer_option(ctx, sct, "qos");
             ++i;
         }
-        else if (
-            strcmp(sct->type, "event") == 0 && 
-            get_integer_option(ctx, sct, "enabled") == 1
-        ) {
+        else if (strcmp(sct->type, "event") == 0) {
+            if (get_integer_option(ctx, sct, "enabled") != 1) {
+                conf->events_amount = conf->events_amount - 1;
+                continue;
+            }
+
             conf->events[j].topic = get_string_option(ctx, sct, "topic");
             conf->events[j].key = get_string_option(ctx, sct, "key");
             conf->events[j].type = (value_type) get_integer_option(ctx, sct, "type");
@@ -119,7 +121,7 @@ config *init_config()
             conf->events[j].smtp_port = get_integer_option(ctx, sct, "smtp_port");
             conf->events[j].smtp_username = get_string_option(ctx, sct, "smtp_username");
             conf->events[j].smtp_password = get_string_option(ctx, sct, "smtp_password");
-            conf->events[j].smtp_use_ssl = get_string_option(ctx, sct, "smtp_use_ssl");
+            conf->events[j].smtp_use_ssl = (bool) get_integer_option(ctx, sct, "smtp_use_ssl");
             conf->events[j].from_email = get_string_option(ctx, sct, "from_email");
             conf->events[j].to_email = get_string_option(ctx, sct, "to_email");
             ++j;
@@ -135,7 +137,7 @@ void cleanup_config(config *conf)
 {
     int i;
     for (i = 0; i < conf->topics_amount; i++) {
-        FREE(conf->topics[i].topic, conf->topics[i]);
+        FREE(conf->topics[i].topic);
     }
 
     for (i = 0; i < conf->events_amount; i++) {
@@ -144,7 +146,6 @@ void cleanup_config(config *conf)
             conf->events[i].key,
             conf->events[i].value,
             conf->events[i].smtp_host,
-            conf->events[i].smtp_port,
             conf->events[i].smtp_username,
             conf->events[i].smtp_password,
             conf->events[i].from_email,

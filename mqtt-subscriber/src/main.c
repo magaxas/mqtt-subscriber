@@ -35,8 +35,8 @@ int main(void)
         rc = mosquitto_loop(mosq, -1, 1);
 
         if(running && rc != MOSQ_ERR_SUCCESS) {
-            syslog(LOG_INFO, "Lost connection! Trying to reconnect in 5s...");
-            sleep(5);
+            syslog(LOG_INFO, "Lost connection! Trying to reconnect in %ds...", RECONNECT_INTERVAL);
+            sleep(RECONNECT_INTERVAL);
 
             rc = mosquitto_reconnect(mosq);
             if (rc != MOSQ_ERR_SUCCESS) {

@@ -155,7 +155,7 @@ int handle_events(config *conf, char *topic, char *payload)
                 syslog(LOG_INFO, "Successfully sent email!");
             }
 
-            FREE(payload);
+            FREE(data);
             FREE(value);
         }
     }

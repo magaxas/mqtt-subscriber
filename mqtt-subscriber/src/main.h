@@ -1,5 +1,7 @@
 #pragma once
 
+#define RECONNECT_INTERVAL 5
+
 //System includes
 #include <stdio.h>
 #include <stdlib.h>
