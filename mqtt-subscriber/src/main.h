@@ -14,7 +14,7 @@
 #include <sqlite3.h>
 #include <mosquitto.h>
 #include <uci.h>
-#include <curl.h>
+#include <curl/curl.h>
 #include <json-c/json.h>
 
 //Source includes

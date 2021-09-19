@@ -39,7 +39,7 @@ static char *get_string_option(
     return opt != NULL ? strdup(opt) : NULL;
 }
 
-static int *get_integer_option(
+static int get_integer_option(
     struct uci_context *ctx,
     struct uci_section *sct,
     char *name)
@@ -108,19 +108,19 @@ config *init_config()
             strcmp(sct->type, "event") == 0 && 
             get_integer_option(ctx, sct, "enabled") == 1
         ) {
-            conf->events[j].topic = get_string_option(ctx, sct, "value");
+            conf->events[j].topic = get_string_option(ctx, sct, "topic");
             conf->events[j].key = get_string_option(ctx, sct, "key");
-            conf->events[j].type = get_integer_option(ctx, sct, "type");
-            conf->events[j].ct = get_integer_option(ctx, sct, "ct");
+            conf->events[j].type = (value_type) get_integer_option(ctx, sct, "type");
+            conf->events[j].ct = (comparison_type) get_integer_option(ctx, sct, "ct");
             conf->events[j].value = get_string_option(ctx, sct, "value");
 
             //Email settings
             conf->events[j].smtp_host = get_string_option(ctx, sct, "smtp_host");
             conf->events[j].smtp_port = get_integer_option(ctx, sct, "smtp_port");
             conf->events[j].smtp_username = get_string_option(ctx, sct, "smtp_username");
-            conf->events[j].smtp_password = get_integer_option(ctx, sct, "smtp_password");
+            conf->events[j].smtp_password = get_string_option(ctx, sct, "smtp_password");
             conf->events[j].smtp_use_ssl = get_string_option(ctx, sct, "smtp_use_ssl");
-            conf->events[j].from_email = get_integer_option(ctx, sct, "from_email");
+            conf->events[j].from_email = get_string_option(ctx, sct, "from_email");
             conf->events[j].to_email = get_string_option(ctx, sct, "to_email");
             ++j;
         }
@@ -138,18 +138,15 @@ void cleanup_config(config *conf)
         FREE(conf->topics[i].topic, conf->topics[i]);
     }
 
-    for (i = 0; i < conf->events; i++) {
+    for (i = 0; i < conf->events_amount; i++) {
         FREE(
             conf->events[i].topic,
             conf->events[i].key,
-            conf->events[i].type,
-            conf->events[i].ct,
             conf->events[i].value,
             conf->events[i].smtp_host,
             conf->events[i].smtp_port,
             conf->events[i].smtp_username,
             conf->events[i].smtp_password,
-            conf->events[i].smtp_use_ssl,
             conf->events[i].from_email,
             conf->events[i].to_email
         );

@@ -166,7 +166,7 @@ topic.rmempty = false
 topic.parse = function(self, section, novld, ...)
 	local value = self:formvalue(section)
 	if value == nil or value == "" then
-		self.map:error_msg(translate("Topic name can not be empty"))
+		self.map:error_msg(translate("Topic name cannot be empty"))
 		self.map.save = false
 	end
 	Value.parse(self, section, novld, ...)

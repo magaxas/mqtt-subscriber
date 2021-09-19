@@ -1,14 +1,10 @@
 #include "main.h"
 
 struct upload_status {
-    char *to;
-    char *from;
-    char *subject;
     char *data;
     size_t bytes_read;
 };
 
-#define PARAMS 5
 static const char *template =
     "Date: %s\r\n"
     "To: %s\r\n"
@@ -20,29 +16,11 @@ static const char *template =
 static size_t payload_source(char *ptr, size_t size, size_t nmemb, void *userp)
 {
     struct upload_status *upload = (struct upload_status*) userp;
-    char *data;
+    const char *data;
     size_t room = size * nmemb;
 
-    data = malloc(
-        strlen(template) +
-        strlen(upload->to) +
-        strlen(upload->from) +
-        strlen(upload->subject) +
-        strlen(upload->data) -
-        (PARAMS*2 - 1)
-    );
-
-    if (!data || size == 0 || nmemb == 0 || size*nmemb < 1) return 0;
-
-    sprintf(
-        data,
-        template,
-        __DATE__,
-        upload->to,
-        upload->from,
-        upload->subject,
-        upload->data
-    );
+    if (size == 0 || nmemb == 0 || size*nmemb < 1) return 0;
+    data = &(upload->data)[upload->bytes_read];
 
     if (data) {
         size_t len = strlen(data);
@@ -56,6 +34,16 @@ static size_t payload_source(char *ptr, size_t size, size_t nmemb, void *userp)
     return 0;
 }
 
+static int get_int_length(int num) {
+    int count = 0;
+    do {
+        count++;
+        num /= 10;
+    } while(num != 0);
+
+    return count;
+}
+
 int send_email(
     char *from,
     char *to,
@@ -65,23 +53,48 @@ int send_email(
     int port,
     char *username,
     char *password,
-    bool use_ssl)
-{
+    bool use_ssl
+) {
     CURL *curl;
     CURLcode res = CURLE_OK;
-    struct curl_slist *recipients;
-    struct upload_status upload = {
-        .to = to,
-        .from = from,
-        .subject = subject,
-        .data = payload,
-        .bytes_read = 0
-    };
+
+    struct curl_slist *recipients = NULL;
+    struct upload_status upload = {0};
+    int url_length = strlen(server) + get_int_length(port) + 10;
+    char *url = (char*) calloc(
+        strlen(server) + get_int_length(port) + 10,
+        sizeof(char)
+    );
+
+    int data_length = (
+        strlen(template) +
+        strlen(to) +
+        strlen(from) +
+        strlen(subject) +
+        strlen(payload)
+    );
+    char *data = (char*) calloc(data_length, sizeof(char));
+    snprintf(
+        data,
+        data_length,
+        template,
+        __DATE__,
+        to,
+        from,
+        subject,
+        payload
+    );
+
+    if (url == NULL || data == NULL) {
+        syslog(LOG_ERR, "Failed to allocate url or data!");
+        return CURLE_OUT_OF_MEMORY;
+    }
 
     curl = curl_easy_init();
     if (curl) {
-        char url[1024] = {0};
-        sprintf("smtps://%s:%d", server, port);
+        upload.bytes_read = 0;
+        upload.data = data;
+        snprintf(url, url_length, "smtp://%s:%d", server, port);
 
         curl_easy_setopt(curl, CURLOPT_USERNAME, username);
         curl_easy_setopt(curl, CURLOPT_PASSWORD, password);
@@ -103,14 +116,16 @@ int send_email(
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
             syslog(
-                LOG_ERR,
-                "curl_easy_perform() failed: %s",
-                curl_easy_strerror(res)
+                LOG_ERR, "curl_easy_perform() failed: %d", (int) res
             );
+            return (int) res;
         }
 
         curl_slist_free_all(recipients);
         curl_easy_cleanup(curl);
+
+        FREE(url);
+        FREE(data);
     }
 
     return (int) res;

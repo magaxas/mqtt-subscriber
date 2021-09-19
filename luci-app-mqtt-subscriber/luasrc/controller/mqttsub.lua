@@ -7,17 +7,27 @@ function index()
     )
     entry(
         {"admin", "services", "mqttsub", "settings"},
-        cbi("mqttsub_settings"), "Settings", 1
+        cbi("settings"), "Settings", 1
     )
     entry(
         {"admin", "services", "mqttsub", "messages"},
-        form("mqttsub_messages"), "Messages", 2
+        form("messages"), "Messages", 2
     )
 
     entry(
         {"admin", "services", "mqttsub", "get_messages"},
         post("get_messages"), nil
     ).leaf = true
+
+    entry(
+        {"admin", "services", "mqttsub", "events"},
+        arcombine(
+            cbi("events/events"),
+            cbi("events/event_details")
+        ),
+        _("Events list"),
+        3
+    ).leaf=true
 end
 
 function get_messages()
